@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>টাস্ক কমপ্লিট করুন - Earn Money</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .earning-card {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            position: relative;
+        }
+
+        .user-balance {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+
+        .user-balance span {
+            font-size: 24px;
+            display: block;
+            margin-top: 5px;
+        }
+
+        .instructions {
+            color: #555;
+            font-size: 14px;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .timer-display {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff4757;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .ad-button {
+            display: inline-block;
+            background-color: #ff4757;
+            color: white;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(255, 71, 87, 0.4);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .ad-button.disabled {
+            background-color: #cccccc;
+            box-shadow: none;
+            pointer-events: none;
+        }
+
+        /* পপআপ স্টাইল */
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            text-align: center;
+            width: 80%;
+            max-width: 350px;
+        }
+
+        .popup h3 {
+            margin-bottom: 10px;
+        }
+
+        .popup button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+
+        .popup.success { border-top: 5px solid #2ed573; }
+        .popup.error { border-top: 5px solid #ff4757; }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="earning-card">
+        <div class="user-balance">
+            আপনার বর্তমান ব্যালেন্স
+            <span id="balance">৳ ০.০০</span>
+        </div>
+
+        <p class="instructions">
+            নিচের বাটনে ক্লিক করে বিজ্ঞাপনটি ওপেন করুন। বিজ্ঞাপনটি কমপক্ষে <b>১ মিনিট (৬০ সেকেন্ড)</b> দেখুন। সময় শেষ হওয়ার আগে ফিরে আসলে টাকা পাবেন না।
+        </p>
+
+        <div class="timer-display" id="timerText">বাকি সময়: ৬০ সেকেন্ড</div>
+
+        <!-- আপনার দেওয়া অ্যাড লিঙ্ক -->
+        <a href="https://profitableratecpmnetwork.com" 
+           target="_blank" class="ad-button" id="adBtn" onclick="startEarningTask()">
+            🚀 বিজ্ঞাপন দেখুন (Earn)
+        </a>
+    </div>
+
+    <!-- পপআপ মেসেজ বক্স সমূহ -->
+    <div class="overlay" id="overlay"></div>
+    
+    <!-- সাকসেস পপআপ -->
+    <div class="popup success" id="successPopup">
+        <h3 style="color: #2ed573;">🎉 অভিনন্দন!</h3>
+        <p>আপনি সম্পূর্ণ সময় ধরে বিজ্ঞাপনটি দেখেছেন। আপনার ব্যালেন্সে ৳ ০.২০ যোগ করা হয়েছে।</p>
+        <button onclick="closePopup('successPopup')">ঠিক আছে</button>
+    </div>
+
+    <!-- এরর পপআপ -->
+    <div class="popup error" id="errorPopup">
+        <h3 style="color: #ff4757;">⚠️ টাস্ক অসম্পূর্ণ!</h3>
+        <p>আপনি সম্পূর্ণ বিজ্ঞাপনটি দেখেননি! দয়া করে পুরো ১ মিনিট অপেক্ষা করুন।</p>
+        <button onclick="closePopup('errorPopup')">আবার চেষ্টা করুন</button>
+    </div>
+
+    <script>
+        let currentBalance = 0.00;
+        let totalSeconds = 60; // ১ মিনিট = ৬০ সেকেন্ড
+        let timerInterval = null;
+        let isTaskRunning = false;
+        let isTimeOver = false;
+
+        const balanceEl = document.getElementById('balance');
+        const timerTextEl = document.getElementById('timerText');
+        const adBtnEl = document.getElementById('adBtn');
+        const overlayEl = document.getElementById('overlay');
+        const successPopupEl = document.getElementById('successPopup');
+        const errorPopupEl = document.getElementById('errorPopup');
+
+        function startEarningTask() {
+            if (isTaskRunning) return;
+
+            isTaskRunning = true;
+            isTimeOver = false;
+            totalSeconds = 60;
+            
+            // বাটন লক করা এবং টাইমার দেখানো
+            adBtnEl.classList.add('disabled');
+            adBtnEl.innerText = "টাস্ক চলছে...";
+            timerTextEl.style.display = "block";
+            timerTextEl.innerText = `বাকি সময়: ${totalSeconds} সেকেন্ড`;
+
+            // টাইমার কাউন্টডাউন শুরু
+            timerInterval = setInterval(() => {
+                totalSeconds--;
+                timerTextEl.innerText = `বাকি সময়: ${totalSeconds} SECOND`;
+
+                if (totalSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    isTimeOver = true;
+                    timerTextEl.innerText = "টাস্ক সম্পন্ন! আপনার মূল ট্যাবে ফিরুন।";
+                }
+            }, 1000);
+        }
+
+        // ইউজার যখন অন্য ট্যাব থেকে আবার আপনার এই ট্যাবে ফিরে আসবে তখন এটি চেক হবে
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && isTaskRunning) {
+                
+                if (isTimeOver) {
+                    // সফলভাবে ১ মিনিট শেষ করলে
+                    currentBalance += 0.20;
+                    balanceEl.innerText = `৳ ${currentBalance.toFixed(2)}`;
+                    showPopup(successPopupEl);
+                } else {
+                    // ১ মিনিটের আগেই ফিরে আসলে
+                    clearInterval(timerInterval);
+                    showPopup(errorPopupEl);
+                }
+
+                // টাস্ক রিসেট করা নতুন ক্লিকের জন্য
+                resetTask();
+            }
+        });
+
+        function showPopup(popupEl) {
+            overlayEl.style.display = "block";
+            popupEl.style.display = "block";
+        }
+
+        function closePopup(popupId) {
+            overlayEl.style.display = "none";
+            document.getElementById(popupId).style.display = "none";
+        }
+
+        function resetTask() {
+            isTaskRunning = false;
+            isTimeOver = false;
+            adBtnEl.classList.remove('disabled');
+            adBtnEl.innerText = "🚀 বিজ্ঞাপন দেখুন (Earn)";
+            timerTextEl.style.display = "none";
+        }
+    </script>
+
+</body>
+</html>
